@@ -1,0 +1,1903 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YourBestiary</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<style>
+  :root{
+    --parchment:#e9dcbb;
+    --parchment-2:#ddc99e;
+    --parchment-deep:#cbb27f;
+    --ink:#2c2115;
+    --ink-soft:#5a4831;
+    --oxblood:#7c2e28;
+    --oxblood-deep:#5c211d;
+    --moss:#4c5a37;
+    --gold:#a9822f;
+    --gold-bright:#c99a3e;
+    --shadow: rgba(30,20,10,0.35);
+    --panel-bg: #f2e6c6;
+  }
+
+  *{box-sizing:border-box;}
+
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:
+      radial-gradient(ellipse at top left, #4a3826 0%, #2c2115 55%),
+      var(--ink);
+    color:var(--ink);
+    font-family:'EB Garamond', serif;
+    overflow:hidden;
+  }
+
+  h1,h2,h3,.display{
+    font-family:'Cinzel', serif;
+    letter-spacing:0.02em;
+    margin:0;
+  }
+
+  /* ---------- App shell ---------- */
+  #app{
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+    max-width:1500px;
+    margin:0 auto;
+    padding:18px 22px 22px;
+  }
+
+  header.masthead{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    padding-bottom:10px;
+    border-bottom:3px double var(--gold);
+    margin-bottom:14px;
+  }
+
+  header.masthead .title-block{
+    display:flex; align-items:baseline; gap:14px;
+  }
+
+  header.masthead h1{
+    font-size:34px;
+    color:var(--parchment);
+    text-shadow: 0 2px 0 rgba(0,0,0,0.4);
+  }
+
+  header.masthead .subtitle{
+    color:var(--parchment-deep);
+    font-style:italic;
+    font-size:15px;
+  }
+
+  .bestiary-io-header{
+    display:none;
+    align-items:center;
+    gap:8px;
+    align-self:center;
+    margin-left:8px;
+    padding-left:14px;
+    border-left:1px solid var(--parchment-deep);
+  }
+  .bestiary-io-header.visible{ display:flex; }
+  .bestiary-io-header .io-btn{
+    font-size:12px;
+    padding:6px 14px;
+  }
+  .io-dropdown-wrap{ position:relative; }
+  .io-dropdown{
+    display:none;
+    position:absolute;
+    top:100%;
+    left:0;
+    margin-top:4px;
+    background:var(--panel-bg);
+    border:1px solid var(--gold);
+    border-radius:4px;
+    overflow:hidden;
+    z-index:60;
+    min-width:130px;
+    box-shadow:0 4px 10px var(--shadow);
+  }
+  .io-dropdown.show{ display:block; }
+  .io-dropdown button{
+    display:block; width:100%; text-align:left;
+    padding:8px 14px; background:transparent; border:none;
+    font-family:'EB Garamond', serif; font-size:14px;
+    color:var(--ink); cursor:pointer;
+  }
+  .io-dropdown button:hover{ background:rgba(124,46,40,0.08); }
+
+  .beast-ctx-menu{
+    display:none;
+    position:fixed;
+    z-index:100;
+    background:var(--panel-bg);
+    border:1px solid var(--gold);
+    border-radius:4px;
+    overflow:hidden;
+    min-width:180px;
+    box-shadow:0 4px 12px var(--shadow);
+  }
+  .beast-ctx-menu.show{ display:block; }
+  .beast-ctx-menu button{
+    display:block; width:100%; text-align:left;
+    padding:9px 16px; background:transparent; border:none;
+    font-family:'EB Garamond', serif; font-size:14px;
+    color:var(--ink); cursor:pointer;
+  }
+  .beast-ctx-menu button:hover{ background:rgba(124,46,40,0.08); }
+
+  /* ---------- Terminal corner trigger + panel ---------- */
+  .corner-zone{
+    position:fixed; bottom:0; left:0;
+    width:64px; height:64px;
+    z-index:400;
+    display:flex; align-items:flex-end; justify-content:flex-start;
+  }
+  .terminal-btn{
+    width:42px; height:42px;
+    margin:8px;
+    border-radius:8px;
+    background:#161616;
+    border:1px solid #000;
+    position:relative;
+    cursor:pointer;
+    opacity:0;
+    transform:translate(-18px, 18px) scale(0.8);
+    pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease;
+    overflow:hidden;
+    box-shadow:0 4px 16px rgba(0,0,0,0.45);
+    padding:0;
+  }
+  .terminal-btn.show{
+    opacity:1;
+    transform:translate(0,0) scale(1);
+    pointer-events:auto;
+  }
+  .terminal-btn:hover{ background:#232323; }
+  .terminal-btn::before{
+    content:'';
+    position:absolute; top:0; left:0; right:0; height:6px;
+    background:rgba(240,240,235,0.85);
+  }
+  .terminal-btn .term-slash{
+    position:absolute; left:0; right:0; bottom:0; top:6px;
+    display:flex; align-items:center; justify-content:center;
+    color:#e6e6e6;
+    font-family:'Courier New', monospace;
+    font-size:12px; letter-spacing:0.02em;
+  }
+
+  .terminal-panel{
+    position:fixed; left:14px; bottom:14px;
+    width:420px; max-width:90vw; height:340px; max-height:70vh;
+    background:#0d0d0d; border:1px solid #333; border-radius:8px;
+    box-shadow:0 12px 40px rgba(0,0,0,0.5);
+    display:flex; flex-direction:column;
+    z-index:401;
+    transform:translateY(20px) scale(0.96);
+    opacity:0; pointer-events:none;
+    transition:opacity .2s ease, transform .2s ease;
+    font-family:'Courier New', monospace;
+    overflow:hidden;
+  }
+  .terminal-panel.open{
+    opacity:1; transform:translateY(0) scale(1); pointer-events:auto;
+  }
+  .terminal-panel-header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 12px; background:#1a1a1a; border-bottom:1px solid #2a2a2a;
+    flex-shrink:0;
+    cursor:move;
+    user-select:none;
+  }
+  .terminal-title{ color:#ddd; font-size:12px; letter-spacing:0.05em; }
+  .terminal-close{
+    background:transparent; border:none; color:#999; cursor:pointer; font-size:14px; padding:2px 4px;
+  }
+  .terminal-close:hover{ color:#fff; }
+  .terminal-output{
+    flex:1; overflow-y:auto; padding:10px 12px;
+    color:#9be89b; font-size:12.5px; line-height:1.55;
+    white-space:pre-wrap; word-break:break-word;
+  }
+  .terminal-output .line.echo{ color:#ddd; }
+  .terminal-output .line.err{ color:#e88888; }
+  .terminal-output .line.sys{ color:#7a7a7a; font-style:italic; }
+  .terminal-output .term-null{ color:#ff5c5c; font-weight:600; }
+  .terminal-input-row{
+    display:flex; align-items:center; gap:6px;
+    padding:8px 12px; border-top:1px solid #2a2a2a; background:#141414;
+    flex-shrink:0;
+  }
+  .terminal-prompt{ color:#6fbf6f; font-size:13px; }
+  .terminal-input{
+    flex:1; background:transparent; border:none; outline:none;
+    color:#eaeaea; font-family:inherit; font-size:13px;
+  }
+
+
+  nav.tabs{
+    display:flex;
+    gap:4px;
+  }
+
+  nav.tabs button{
+    font-family:'Cinzel', serif;
+    font-size:14px;
+    letter-spacing:0.08em;
+    padding:10px 26px 9px;
+    background:linear-gradient(#3a2c1c,#2c2115);
+    color:var(--parchment-deep);
+    border:1px solid var(--gold);
+    border-bottom:none;
+    border-radius:6px 6px 0 0;
+    cursor:pointer;
+    position:relative;
+    top:1px;
+    transition:color .15s ease, background .15s ease;
+  }
+  nav.tabs button:hover{ color:var(--parchment); }
+  nav.tabs button.active{
+    background:linear-gradient(var(--panel-bg), var(--parchment-2));
+    color:var(--oxblood-deep);
+    border-color:var(--gold-bright);
+  }
+
+  main{
+    flex:1;
+    min-height:0;
+    background:var(--panel-bg);
+    border:1px solid var(--gold);
+    border-radius:2px 10px 10px 10px;
+    box-shadow: 0 10px 40px var(--shadow), inset 0 0 0 6px rgba(169,130,47,0.12);
+    position:relative;
+    overflow:hidden;
+  }
+
+  main::before{
+    content:"";
+    position:absolute; inset:8px;
+    border:1px solid rgba(124,46,40,0.35);
+    pointer-events:none;
+    border-radius:2px;
+  }
+
+  .view{ display:none; height:100%; }
+  .view.active{ display:flex; height:100%; }
+
+  /* ---------- Shared: beast index list ---------- */
+  .index-col{
+    width:230px;
+    flex-shrink:0;
+    border-right:2px solid var(--parchment-deep);
+    padding:16px 12px;
+    overflow-y:auto;
+    background:linear-gradient(180deg, rgba(124,46,40,0.05), transparent 120px);
+  }
+
+  .index-col h2{
+    font-size:15px;
+    color:var(--oxblood-deep);
+    padding-bottom:8px;
+    margin-bottom:10px;
+    border-bottom:1px solid var(--gold);
+  }
+
+  .search-wrap{
+    margin-bottom:10px;
+  }
+  .search-wrap input{
+    width:100%;
+    font-size:13.5px;
+    padding:7px 9px;
+  }
+  .search-hint{
+    font-size:11px; color:var(--ink-soft); font-style:italic;
+    margin:4px 2px 8px;
+  }
+
+  .beast-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:7px 8px;
+    border-radius:4px;
+    cursor:pointer;
+    margin-bottom:4px;
+    border:1px solid transparent;
+  }
+  .beast-item:hover{ background:rgba(124,46,40,0.08); }
+  .beast-item.active{
+    background:rgba(124,46,40,0.14);
+    border-color:var(--oxblood);
+  }
+  .beast-item .thumb{
+    width:36px; height:36px;
+    border-radius:3px;
+    background:var(--parchment-2) center/cover no-repeat;
+    border:1px solid var(--gold);
+    flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; color:var(--gold);
+  }
+  .beast-item .name{
+    font-size:15px;
+    color:var(--ink);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .beast-item .name:empty::before{ content:var(--i18n-noname, "(sin nombre)"); color:var(--ink-soft); font-style:italic; }
+  .beast-item .beast-id{
+    font-size:11px;
+    color:var(--ink-soft);
+    flex-shrink:0;
+  }
+  .beast-id-tag{
+    font-size:12px;
+    font-weight:400;
+    color:var(--ink-soft);
+    margin-left:8px;
+  }
+
+  .empty-index{
+    color:var(--ink-soft); font-style:italic; font-size:14px; padding:6px 4px;
+  }
+
+  /* ---------- LOOK view ---------- */
+  .stage-col{
+    flex:1.3;
+    display:flex;
+    flex-direction:column;
+    padding:20px 22px;
+    border-right:2px solid var(--parchment-deep);
+    overflow-y:auto;
+  }
+
+  .beast-name-plate{
+    text-align:center;
+    font-size:26px;
+    color:var(--oxblood-deep);
+    margin-bottom:12px;
+  }
+
+  .stage-frame{
+    flex:1;
+    min-height:220px;
+    position:relative;
+    background:
+      repeating-conic-gradient(from 45deg, rgba(124,46,40,0.05) 0% 25%, transparent 0% 50%) 0 0/26px 26px,
+      var(--parchment-2);
+    border:2px solid var(--gold);
+    border-radius:6px;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+    box-shadow: inset 0 0 30px rgba(44,33,21,0.25);
+  }
+
+  .stage-frame img{
+    max-width:100%; max-height:100%;
+    object-fit:contain;
+    filter: drop-shadow(0 6px 14px rgba(0,0,0,0.35));
+  }
+
+  .stage-placeholder{
+    font-size:70px; opacity:0.35; color:var(--ink-soft);
+  }
+
+  .side-label{
+    position:absolute; top:10px; left:10px;
+    background:rgba(44,33,21,0.65);
+    color:var(--parchment);
+    font-family:'Cinzel', serif;
+    font-size:12px; letter-spacing:0.06em;
+    padding:5px 12px;
+    border-radius:3px;
+    border:1px solid var(--gold);
+  }
+
+  .stage-nav{
+    position:absolute; top:50%; transform:translateY(-50%);
+    background:rgba(44,33,21,0.55);
+    color:var(--parchment);
+    border:none;
+    width:36px; height:36px;
+    border-radius:50%;
+    cursor:pointer;
+    font-size:18px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .stage-nav:hover{ background:rgba(44,33,21,0.8); }
+  .stage-nav.prev{ left:10px; }
+  .stage-nav.next{ right:10px; }
+
+  .stage-dots{
+    position:absolute; bottom:10px; left:0; right:0;
+    display:flex; justify-content:center; gap:6px;
+  }
+  .stage-dots span{
+    width:7px; height:7px; border-radius:50%;
+    background:rgba(44,33,21,0.3);
+  }
+  .stage-dots span.on{ background:var(--oxblood); }
+
+  .stats-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    justify-content:center;
+    margin-top:16px;
+  }
+
+  .stat-chip{
+    display:flex; align-items:center; gap:8px;
+    background:var(--parchment);
+    border:1px solid var(--gold);
+    border-radius:20px;
+    padding:6px 14px 6px 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+  }
+  .stat-chip .emoji{ font-size:18px; }
+  .stat-chip .label{ font-size:13px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em; }
+  .stat-chip .value{ font-size:15px; font-weight:600; color:var(--oxblood-deep); }
+
+  .desc-col{
+    width:340px;
+    flex-shrink:0;
+    padding:20px 20px;
+    overflow-y:auto;
+    display:flex; flex-direction:column; gap:14px;
+  }
+
+  .desc-col h2{
+    font-size:15px;
+    color:var(--oxblood-deep);
+    padding-bottom:8px;
+    border-bottom:1px solid var(--gold);
+    margin-bottom:4px;
+  }
+
+  .desc-box{
+    background:var(--parchment);
+    border:1px solid var(--parchment-deep);
+    border-left:3px solid var(--oxblood);
+    padding:12px 14px;
+    border-radius:0 4px 4px 0;
+  }
+  .desc-box h3{
+    font-size:15px; color:var(--oxblood-deep); margin-bottom:6px;
+  }
+  .desc-box p{
+    margin:0; font-size:14.5px; line-height:1.5; color:var(--ink); white-space:pre-wrap;
+  }
+  .desc-box p:empty::before{ content:"..."; color:var(--ink-soft); }
+
+  .types-section{
+    margin-top:auto;
+    padding-top:10px;
+  }
+  .types-row{
+    display:flex; flex-wrap:wrap; gap:8px;
+  }
+  .type-chip{
+    display:flex; align-items:center; gap:6px;
+    background:var(--moss);
+    color:var(--parchment);
+    border-radius:14px;
+    padding:5px 12px 5px 9px;
+    font-size:13px;
+  }
+  .type-chip .emoji{ font-size:15px; }
+
+  .no-beast-msg{
+    margin:auto; text-align:center; color:var(--ink-soft); font-style:italic; font-size:16px;
+    max-width:280px;
+  }
+
+  /* ---------- EDIT view ---------- */
+  .edit-col{
+    flex:1;
+    padding:20px 26px;
+    overflow-y:auto;
+  }
+
+  .index-col .add-beast-btn{
+    width:100%;
+    margin-top:6px;
+    padding:8px;
+    font-family:'Cinzel',serif;
+    font-size:13px;
+    letter-spacing:0.05em;
+    background:var(--moss);
+    color:var(--parchment);
+    border:1px solid var(--gold);
+    border-radius:4px;
+    cursor:pointer;
+  }
+  .index-col .add-beast-btn:hover{ filter:brightness(1.1); }
+
+  .beast-item .del-x{
+    margin-left:auto;
+    color:var(--oxblood);
+    opacity:0.5;
+    font-size:13px;
+    padding:2px 4px;
+  }
+  .beast-item .del-x:hover{ opacity:1; }
+
+  .beast-item .item-reorder{ display:flex; flex-direction:column; gap:1px; margin-left:auto; flex-shrink:0; }
+  .beast-item .item-reorder button{
+    width:20px; height:15px; font-size:9px; line-height:1;
+    border:1px solid var(--parchment-deep); background:transparent; cursor:pointer;
+    border-radius:3px; color:var(--oxblood); padding:0;
+  }
+  .beast-item .item-reorder button:hover:not(:disabled){ background:rgba(124,46,40,0.1); }
+  .beast-item .item-reorder button:disabled{ opacity:0.25; cursor:default; }
+  .beast-item .del-x.with-reorder{ margin-left:6px; }
+
+  .field-group{
+    margin-bottom:26px;
+  }
+  .field-group > label.section-label{
+    display:block;
+    font-family:'Cinzel', serif;
+    font-size:14px;
+    color:var(--oxblood-deep);
+    margin-bottom:10px;
+    padding-bottom:5px;
+    border-bottom:1px solid var(--gold);
+  }
+  .field-group > label.section-label.with-input{
+    display:flex; align-items:center; gap:8px; border-bottom:none;
+    padding-bottom:0; margin-bottom:12px;
+  }
+  .section-label-in{
+    font-family:'Cinzel', serif;
+    font-size:14px;
+    color:var(--oxblood-deep);
+    background:transparent;
+    border:none;
+    border-bottom:1px dashed var(--gold);
+    padding:2px 2px 4px;
+    width:160px;
+  }
+  .section-label-fixed{
+    flex:1;
+    border-bottom:1px solid var(--gold);
+    padding-bottom:5px;
+  }
+
+  input[type=text], textarea{
+    font-family:'EB Garamond', serif;
+    font-size:15px;
+    background:var(--parchment);
+    border:1px solid var(--parchment-deep);
+    border-radius:4px;
+    padding:8px 10px;
+    color:var(--ink);
+  }
+  input[type=text]:focus, textarea:focus{
+    outline:none; border-color:var(--oxblood);
+  }
+
+  .name-input{ width:100%; max-width:420px; font-size:20px; }
+
+  .thumb-box{
+    display:flex; align-items:center; gap:14px;
+  }
+  .thumb-preview{
+    width:88px; height:88px;
+    border:1px solid var(--gold);
+    border-radius:5px;
+    background:var(--parchment-2) center/cover no-repeat;
+    display:flex; align-items:center; justify-content:center;
+    font-size:24px; color:var(--gold);
+    flex-shrink:0;
+  }
+
+  .sides-list{
+    display:flex; flex-direction:column; gap:8px;
+    margin-bottom:10px;
+  }
+  .side-row{
+    display:flex; align-items:center; gap:10px;
+    border:1px solid var(--parchment-deep);
+    border-radius:5px;
+    padding:8px;
+    background:rgba(255,255,255,0.25);
+  }
+  .side-row .side-thumb{
+    width:56px; height:56px; border-radius:4px;
+    border:1px solid var(--gold);
+    object-fit:cover; flex-shrink:0;
+  }
+  .side-row .label-in{ flex:1; }
+  .side-row .reorder-btns{ display:flex; flex-direction:column; gap:2px; }
+  .side-row .reorder-btns button{
+    width:22px; height:18px; font-size:10px; line-height:1;
+    border:1px solid var(--parchment-deep); background:transparent; cursor:pointer; border-radius:3px; color:var(--oxblood);
+  }
+  .side-row .reorder-btns button:hover{ background:rgba(124,46,40,0.1); }
+
+  .upload-btn{
+    display:inline-flex; align-items:center; gap:6px;
+    font-family:'Cinzel', serif; font-size:12.5px; letter-spacing:0.04em;
+    background:var(--gold); color:var(--ink);
+    border:none; padding:9px 16px; border-radius:4px; cursor:pointer;
+  }
+  .upload-btn:hover{ background:var(--gold-bright); }
+  .upload-btn.secondary{
+    background:transparent; border:1px solid var(--gold); color:var(--oxblood-deep);
+  }
+
+  .stat-row, .type-row{
+    display:flex; align-items:center; gap:8px;
+    margin-bottom:8px;
+  }
+  .stat-row input.emoji-in, .type-row input.emoji-in{
+    width:46px; text-align:center; font-size:18px;
+  }
+  .stat-row input.label-in{ width:150px; }
+  .stat-row input.value-in{ width:100px; }
+  .type-name-wrap{ position:relative; width:180px; }
+  .type-name-wrap input.type-name-in{ width:100%; }
+
+  .type-suggest{
+    display:none; position:absolute; top:100%; left:0; right:0;
+    margin-top:3px; background:var(--panel-bg); border:1px solid var(--gold);
+    border-radius:4px; overflow-y:auto; max-height:190px;
+    z-index:70; box-shadow:0 4px 10px var(--shadow);
+  }
+  .type-suggest.show{ display:block; }
+  .type-suggest .sug-item{
+    display:flex; align-items:center; gap:8px;
+    padding:7px 10px; cursor:pointer; font-size:14px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .type-suggest .sug-item.highlight, .type-suggest .sug-item:hover{
+    background:rgba(124,46,40,0.12);
+  }
+
+  .types-editor{ display:flex; gap:16px; align-items:flex-start; }
+  .types-main{ flex:1 1 0; min-width:0; }
+  .types-common{
+    flex:0 0 33%; max-width:33%; min-width:0;
+    border-left:1px solid var(--parchment-deep);
+    padding-left:14px;
+  }
+  .types-common-title{
+    font-family:'Cinzel', serif; font-size:11.5px; letter-spacing:0.06em;
+    color:var(--ink-soft); margin-bottom:8px; text-transform:uppercase;
+  }
+  .types-common-list{ display:flex; flex-direction:column; gap:6px; }
+  .type-chip-common{
+    display:flex; align-items:center; gap:7px;
+    padding:6px 9px; border:1px solid var(--gold); border-radius:4px;
+    cursor:pointer; background:rgba(255,255,255,0.35);
+    color:var(--ink);
+    overflow:hidden; min-width:0;
+  }
+  .type-chip-common:hover{ background:rgba(124,46,40,0.1); }
+  .type-chip-common .chip-emoji{ flex-shrink:0; font-size:14px; }
+  .type-chip-common .chip-name{
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13.5px;
+    color:var(--ink);
+  }
+  .types-common-empty{ font-size:12.5px; color:var(--ink-soft); font-style:italic; }
+
+  .icon-btn{
+    background:transparent; border:1px solid var(--parchment-deep);
+    color:var(--oxblood); border-radius:4px;
+    width:30px; height:30px; cursor:pointer; font-size:15px;
+  }
+  .icon-btn:hover{ background:rgba(124,46,40,0.1); }
+
+  .add-row-btn{
+    font-family:'Cinzel', serif; font-size:12.5px; letter-spacing:0.04em;
+    background:transparent; color:var(--oxblood-deep);
+    border:1px dashed var(--oxblood); border-radius:4px;
+    padding:7px 14px; cursor:pointer; margin-top:4px;
+  }
+  .add-row-btn:hover{ background:rgba(124,46,40,0.06); }
+
+  .desc-block{
+    border:1px solid var(--parchment-deep);
+    border-radius:5px;
+    padding:12px 14px;
+    margin-bottom:12px;
+    background:rgba(255,255,255,0.25);
+  }
+  .desc-block .row1{
+    display:flex; align-items:center; gap:8px; margin-bottom:8px;
+  }
+  .desc-block .title-in{ flex:1; font-size:16px; font-weight:600; }
+  .desc-block textarea{
+    width:100%; min-height:80px; resize:vertical; line-height:1.5;
+  }
+
+  .no-beast-edit{
+    color:var(--ink-soft); font-style:italic; margin-top:40px; text-align:center;
+  }
+
+  /* Footer save/load bar */
+  .bestiary-io{
+    display:flex; gap:10px; justify-content:center;
+    padding:14px 0 4px;
+    border-top:2px solid var(--parchment-deep);
+    margin-top:8px;
+  }
+  .io-btn{
+    font-family:'Cinzel', serif; font-size:13px; letter-spacing:0.05em;
+    padding:10px 22px;
+    border-radius:4px; cursor:pointer;
+    border:1px solid var(--gold);
+  }
+  .io-btn.save{ background:var(--oxblood); color:var(--parchment); }
+  .io-btn.save:hover{ background:var(--oxblood-deep); }
+  .io-btn.load{ background:transparent; color:var(--oxblood-deep); }
+  .io-btn.load:hover{ background:rgba(124,46,40,0.08); }
+
+  header.masthead .bestiary-io-header .io-btn.load{
+    background:linear-gradient(#3a2c1c,#2c2115);
+    color:var(--parchment-deep);
+    border-color:var(--gold);
+  }
+  header.masthead .bestiary-io-header .io-btn.load:hover{
+    color:var(--parchment);
+    background:linear-gradient(#443320,#332617);
+  }
+
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--ink); color:var(--parchment);
+    padding:10px 20px; border-radius:5px;
+    font-size:14px; border:1px solid var(--gold);
+    opacity:0; pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease;
+    z-index:50;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  ::-webkit-scrollbar{ width:9px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+  ::-webkit-scrollbar-thumb{ background:var(--parchment-deep); border-radius:5px; }
+  ::-webkit-scrollbar-thumb:hover{ background:var(--gold); }
+
+  button:focus-visible, input:focus-visible, textarea:focus-visible{
+    outline:2px solid var(--oxblood); outline-offset:1px;
+  }
+
+  /* ---------- Terminal: keep it monochrome, independent of the page's
+     parchment/gold theme (higher-specificity overrides so the generic
+     input/scrollbar/focus rules above never bleed into it) ---------- */
+  #terminal-panel input.terminal-input[type=text]{
+    background:transparent; border:none; outline:none;
+    color:#eaeaea; font-family:'Courier New', monospace; font-size:13px;
+  }
+  #terminal-panel input.terminal-input[type=text]:focus{
+    background:transparent; border:none; outline:none;
+  }
+  #terminal-panel button:focus-visible,
+  #terminal-panel input.terminal-input[type=text]:focus-visible{
+    outline:2px solid #555; outline-offset:1px;
+  }
+  #terminal-panel ::-webkit-scrollbar-thumb{ background:#3a3a3a; }
+  #terminal-panel ::-webkit-scrollbar-thumb:hover{ background:#555; }
+
+  /* ---------- Language switcher: bottom-right corner ---------- */
+  .lang-corner-zone{
+    position:fixed; bottom:0; right:0;
+    padding:14px;
+    z-index:400;
+  }
+  .lang-btn{
+    width:42px; height:42px;
+    border-radius:50%;
+    background:linear-gradient(#3a2c1c,#2c2115);
+    border:1px solid var(--gold);
+    color:var(--parchment);
+    font-size:20px;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 4px 16px rgba(0,0,0,0.45);
+    transition:transform .15s ease, background .15s ease;
+  }
+  .lang-btn:hover{ background:linear-gradient(#443320,#332617); transform:scale(1.06); }
+  .lang-dropdown{
+    display:none;
+    position:absolute;
+    bottom:100%; right:0;
+    margin-bottom:8px;
+    background:var(--panel-bg);
+    border:1px solid var(--gold);
+    border-radius:6px;
+    overflow:hidden;
+    min-width:170px;
+    box-shadow:0 6px 16px var(--shadow);
+  }
+  .lang-dropdown.show{ display:block; }
+  .lang-dropdown .lang-option{
+    display:flex; align-items:center; gap:9px; width:100%;
+    text-align:left; padding:9px 14px; background:transparent; border:none;
+    font-family:'EB Garamond', serif; font-size:14.5px;
+    color:var(--ink); cursor:pointer;
+  }
+  .lang-dropdown .lang-option:hover{ background:rgba(124,46,40,0.08); }
+  .lang-dropdown .lang-option.active{ color:var(--oxblood-deep); font-weight:600; }
+  .lang-dropdown .lang-flag{ font-size:16px; }
+  .lang-dropdown .lang-name{ flex:1; }
+  .lang-dropdown .lang-check{ color:var(--oxblood); }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header class="masthead">
+    <div class="title-block">
+      <h1>YourBestiary</h1>
+      <span class="subtitle" data-i18n="app.subtitle">un compendio de criaturas propio</span>
+      <div class="bestiary-io-header" id="header-io">
+        <button class="io-btn save" data-i18n="io.save" onclick="saveBestiary()">💾 Guardar</button>
+        <div class="io-dropdown-wrap">
+          <button class="io-btn load" data-i18n="io.load" onclick="toggleLoadMenu(event)">📂 Cargar ▾</button>
+          <div class="io-dropdown" id="load-dropdown">
+            <button data-i18n="io.load.bestiary" onclick="triggerLoadBestiary()">Bestiario</button>
+            <button data-i18n="io.load.beast" onclick="triggerLoadBeast()">Bestia</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button id="tab-btn-look" class="active" onclick="switchTab('look')">LOOK</button>
+      <button id="tab-btn-edit" onclick="switchTab('edit')">EDIT</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ===================== LOOK VIEW ===================== -->
+    <div id="view-look" class="view active">
+      <div class="index-col" id="look-index"></div>
+      <div class="stage-col" id="look-stage-col"></div>
+      <div class="desc-col" id="look-desc-col"></div>
+    </div>
+
+    <!-- ===================== EDIT VIEW ===================== -->
+    <div id="view-edit" class="view">
+      <div class="index-col" id="edit-index"></div>
+      <div class="edit-col" id="edit-form"></div>
+    </div>
+  </main>
+</div>
+
+<input type="file" id="file-sides" accept="image/png,image/*" multiple style="display:none">
+<input type="file" id="file-thumb" accept="image/png,image/*" style="display:none">
+<input type="file" id="file-load" accept=".bestiary" style="display:none">
+<input type="file" id="file-load-beast" accept=".beast" style="display:none">
+<div class="toast" id="toast"></div>
+<div class="beast-ctx-menu" id="beast-ctx-menu"></div>
+
+<!-- Terminal (futura): esquina inferior izquierda -->
+<div class="corner-zone" id="corner-zone">
+  <button class="terminal-btn" id="terminal-btn" onclick="openTerminalPanel()" title="Open terminal (/do)">
+    <span class="term-slash">/do</span>
+  </button>
+</div>
+<div class="terminal-panel" id="terminal-panel">
+  <div class="terminal-panel-header">
+    <span class="terminal-title">/do — terminal</span>
+    <button class="terminal-close" onclick="closeTerminalPanel()">✕</button>
+  </div>
+  <div class="terminal-output" id="terminal-output"></div>
+  <div class="terminal-input-row">
+    <span class="terminal-prompt">/do&gt;</span>
+    <input type="text" id="terminal-input" class="terminal-input" autocomplete="off" spellcheck="false" placeholder="Type a command...">
+  </div>
+</div>
+
+<!-- Selector de idioma: esquina inferior derecha -->
+<div class="lang-corner-zone" id="lang-corner-zone">
+  <div class="lang-dropdown" id="lang-dropdown"></div>
+  <button class="lang-btn" id="lang-btn" onclick="toggleLangMenu(event)" title="Change language / Cambiar idioma">🌐</button>
+</div>
+
+<script src="i18n.js"></script>
+<script src="esp.js"></script>
+<script src="eng.js"></script>
+<script src="por.js"></script>
+<script>
+/* =========================================================
+   STATE
+   ========================================================= */
+let state = {
+  beasts: [],
+  selectedId: null
+};
+let currentTab = 'look';
+let stageIndex = {}; // per-beast current side index for the LOOK carousel
+let lookSearchQuery = '';
+
+function uid(){ return 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+function makeBeast(name){
+  return {
+    id: uid(),
+    name: name || '',
+    thumb: null,          // single image, set independently
+    sides: [],            // [{id, label, src}] ordered illustrations
+    stats: [],
+    desc: [ { title:t('desc.title'), text:'' } ],
+    typesLabel: t('types.label.default'),
+    types: []             // [{id, emoji, name}]
+  };
+}
+
+function getSelected(){
+  return state.beasts.find(b => b.id === state.selectedId) || null;
+}
+
+function letterFor(n){
+  return n < 26 ? String.fromCharCode(65 + n) : String(n + 1);
+}
+
+/* =========================================================
+   TABS
+   ========================================================= */
+function switchTab(tab){
+  currentTab = tab;
+  document.getElementById('tab-btn-look').classList.toggle('active', tab==='look');
+  document.getElementById('tab-btn-edit').classList.toggle('active', tab==='edit');
+  document.getElementById('view-look').classList.toggle('active', tab==='look');
+  document.getElementById('view-edit').classList.toggle('active', tab==='edit');
+  document.getElementById('header-io').classList.toggle('visible', tab==='edit');
+  renderAll();
+}
+
+/* =========================================================
+   SEARCH (LOOK only)
+   ========================================================= */
+function onLookSearch(val){
+  lookSearchQuery = val;
+  updateLookList();
+}
+
+function updateLookList(){
+  const listEl = document.getElementById('look-beast-list');
+  if(!listEl) return;
+  listEl.innerHTML = '';
+  renderBeastList(listEl, getFilteredBeasts(), false);
+}
+
+function getFilteredBeasts(){
+  const q = lookSearchQuery.trim();
+  if(!q) return state.beasts;
+  if(q.startsWith('#')){
+    const term = q.slice(1).trim().toLowerCase();
+    if(!term) return state.beasts;
+    return state.beasts.filter(b => (b.types||[]).some(t => t.name.toLowerCase().includes(term)));
+  }
+  const term = q.toLowerCase();
+  return state.beasts.filter(b => b.name.toLowerCase().includes(term));
+}
+
+/* =========================================================
+   RENDER: shared index list
+   ========================================================= */
+function renderBeastList(el, list, editable){
+  let html = '';
+  if(list.length === 0){
+    html += `<div class="empty-index">${state.beasts.length===0 ? t('list.empty.none') : t('list.empty.noMatch')}</div>`;
+  } else {
+    list.forEach(b => {
+      const thumbInner = b.thumb ? `style="background-image:url('${b.thumb}')"` : '';
+      const active = b.id === state.selectedId ? 'active' : '';
+      const realIdx = state.beasts.findIndex(x => x.id === b.id);
+      html += `
+        <div class="beast-item ${active}" onclick="selectBeast('${b.id}')" ${editable ? `oncontextmenu="showBeastContextMenu(event,'${b.id}')"` : ''}>
+          <div class="thumb" ${thumbInner}>${b.thumb ? '' : '🐾'}</div>
+          ${editable ? `<span class="beast-id">#${realIdx+1}</span>` : ''}
+          <div class="name">${escapeHtml(b.name)}</div>
+          ${editable ? `
+            <div class="item-reorder">
+              <button title="${t('reorder.up')}" onclick="event.stopPropagation(); moveBeast('${b.id}', -1)" ${realIdx===0 ? 'disabled' : ''}>▲</button>
+              <button title="${t('reorder.down')}" onclick="event.stopPropagation(); moveBeast('${b.id}', 1)" ${realIdx===state.beasts.length-1 ? 'disabled' : ''}>▼</button>
+            </div>
+            <span class="del-x with-reorder" title="${t('beast.delete')}" onclick="event.stopPropagation(); deleteBeast('${b.id}')">✕</span>` : ''}
+        </div>`;
+    });
+  }
+  el.innerHTML += html;
+  if(editable){
+    el.innerHTML += `<button class="add-beast-btn" onclick="addBeast()">${t('beast.add')}</button>`;
+  }
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+/* =========================================================
+   RENDER: LOOK view
+   ========================================================= */
+function renderLook(){
+  const idxEl = document.getElementById('look-index');
+  // Only (re)build the search box + wrapper once; keeps the input's focus/cursor
+  // intact while typing, since later updates only touch #look-beast-list.
+  if(!document.getElementById('look-search')){
+    idxEl.innerHTML = `
+      <h2>${t('index.title')}</h2>
+      <div class="search-wrap">
+        <input type="text" id="look-search" placeholder="${t('search.placeholder')}" value="${escapeHtml(lookSearchQuery)}" oninput="onLookSearch(this.value)">
+      </div>
+      <div class="search-hint">${t('search.hint')}</div>
+      <div id="look-beast-list"></div>
+    `;
+  }
+  updateLookList();
+
+  const stageCol = document.getElementById('look-stage-col');
+  const descCol = document.getElementById('look-desc-col');
+  const b = getSelected();
+
+  if(!b){
+    stageCol.innerHTML = `<div class="no-beast-msg">${t('look.noBeastSelected')}</div>`;
+    descCol.innerHTML = '';
+    return;
+  }
+
+  if(stageIndex[b.id] === undefined) stageIndex[b.id] = 0;
+  let idx = stageIndex[b.id];
+  if(idx >= b.sides.length) idx = 0;
+  const hasSides = b.sides.length > 0;
+  const nav = b.sides.length > 1;
+  const currentSide = hasSides ? b.sides[idx] : null;
+
+  let statsHtml = '';
+  if(b.stats.length){
+    statsHtml = '<div class="stats-row">' + b.stats.map(s =>
+      `<div class="stat-chip"><span class="emoji">${escapeHtml(s.emoji)}</span><span class="label">${escapeHtml(s.label)}</span><span class="value">${escapeHtml(s.value)}</span></div>`
+    ).join('') + '</div>';
+  }
+
+  stageCol.innerHTML = `
+    <div class="beast-name-plate">${b.name ? escapeHtml(b.name) : '<span style="font-style:italic;color:var(--ink-soft)">' + t('beast.noName') + '</span>'}</div>
+    <div class="stage-frame">
+      ${hasSides
+        ? `<img src="${currentSide.src}" alt="${escapeHtml(b.name)}">${currentSide.label ? `<div class="side-label">${escapeHtml(currentSide.label)}</div>` : ''}`
+        : `<div class="stage-placeholder">🐉</div>`}
+      ${nav ? `<button class="stage-nav prev" onclick="stagePrev('${b.id}')">‹</button><button class="stage-nav next" onclick="stageNext('${b.id}')">›</button>` : ''}
+      ${nav ? `<div class="stage-dots">${b.sides.map((_,i)=>`<span class="${i===idx?'on':''}"></span>`).join('')}</div>` : ''}
+    </div>
+    ${statsHtml}
+  `;
+
+  let descHtml = '<h2>' + t('desc.title') + '</h2>';
+  if(b.desc.length === 0){
+    descHtml += '<div class="empty-index">' + t('desc.empty') + '</div>';
+  } else {
+    b.desc.forEach(d => {
+      descHtml += `<div class="desc-box"><h3>${escapeHtml(d.title) || t('desc.untitled')}</h3><p>${escapeHtml(d.text)}</p></div>`;
+    });
+  }
+
+  descHtml += `<div class="types-section"><h2>${escapeHtml(b.typesLabel) || t('types.label.default')}</h2>`;
+  if(!b.types || b.types.length === 0){
+    descHtml += '<div class="empty-index">' + t('types.empty') + '</div>';
+  } else {
+    descHtml += '<div class="types-row">' + b.types.map(t =>
+      `<div class="type-chip"><span class="emoji">${escapeHtml(t.emoji)}</span><span>${escapeHtml(t.name)}</span></div>`
+    ).join('') + '</div>';
+  }
+  descHtml += '</div>';
+
+  descCol.innerHTML = descHtml;
+}
+
+function stagePrev(id){
+  const b = state.beasts.find(x=>x.id===id); if(!b) return;
+  stageIndex[id] = (stageIndex[id] - 1 + b.sides.length) % b.sides.length;
+  renderLook();
+}
+function stageNext(id){
+  const b = state.beasts.find(x=>x.id===id); if(!b) return;
+  stageIndex[id] = (stageIndex[id] + 1) % b.sides.length;
+  renderLook();
+}
+
+/* =========================================================
+   RENDER: EDIT view
+   ========================================================= */
+function renderEdit(){
+  const idxEl = document.getElementById('edit-index');
+  idxEl.innerHTML = `<h2>${t('index.title')}</h2>`;
+  renderBeastList(idxEl, state.beasts, true);
+
+  const el = document.getElementById('edit-form');
+  const b = getSelected();
+
+  if(!b){
+    el.innerHTML = `<div class="no-beast-edit">${t('edit.noBeastSelected', { addLabel: t('beast.add') })}</div>`;
+    return;
+  }
+
+  const beastIdx = state.beasts.findIndex(x => x.id === b.id);
+
+  let html = '';
+
+  // Name
+  html += `
+    <div class="field-group">
+      <label class="section-label">${t('field.name')} <span class="beast-id-tag">#${beastIdx+1}</span></label>
+      <input type="text" class="name-input" id="input-name" value="${escapeHtml(b.name)}" placeholder="${t('field.name.placeholder')}" oninput="updateName(this.value)">
+    </div>`;
+
+  // Thumbnail (single image only)
+  html += `
+    <div class="field-group">
+      <label class="section-label">${t('field.thumb.label')}</label>
+      <div class="thumb-box">
+        <div class="thumb-preview" ${b.thumb ? `style="background-image:url('${b.thumb}')"` : ''}>${b.thumb ? '' : '🐾'}</div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <button class="upload-btn" onclick="document.getElementById('file-thumb').click()">${b.thumb ? t('field.thumb.change') : t('field.thumb.upload')}</button>
+          ${b.thumb ? `<button class="upload-btn secondary" onclick="clearThumb()">${t('field.thumb.remove')}</button>` : ''}
+        </div>
+      </div>
+    </div>`;
+
+  // Sides (multiple images, ordered, custom label each)
+  html += `<div class="field-group"><label class="section-label">${t('field.sides.label')}</label>`;
+  html += `<div class="sides-list">`;
+  b.sides.forEach((s, i) => {
+    html += `
+      <div class="side-row">
+        <img class="side-thumb" src="${s.src}">
+        <input type="text" class="label-in" value="${escapeHtml(s.label)}" placeholder="${t('field.sides.placeholder')}" oninput="updateSideLabel(${i}, this.value)">
+        <div class="reorder-btns">
+          <button title="${t('reorder.up')}" onclick="moveSide(${i}, -1)" ${i===0 ? 'disabled' : ''}>▲</button>
+          <button title="${t('reorder.down')}" onclick="moveSide(${i}, 1)" ${i===b.sides.length-1 ? 'disabled' : ''}>▼</button>
+        </div>
+        <button class="icon-btn" title="${t('field.sides.remove')}" onclick="removeSide(${i})">✕</button>
+      </div>`;
+  });
+  html += `</div><button class="upload-btn" onclick="document.getElementById('file-sides').click()">${t('field.sides.add')}</button></div>`;
+
+  // Stats
+  html += `<div class="field-group"><label class="section-label">Stats</label>`;
+  b.stats.forEach((s, i) => {
+    html += `
+      <div class="stat-row">
+        <input type="text" class="emoji-in" value="${escapeHtml(s.emoji)}" placeholder="🔥" oninput="updateStat(${i},'emoji',this.value)">
+        <input type="text" class="label-in" value="${escapeHtml(s.label)}" placeholder="${t('field.stat.namePlaceholder')}" oninput="updateStat(${i},'label',this.value)">
+        <input type="text" class="value-in" value="${escapeHtml(s.value)}" placeholder="${t('field.stat.valuePlaceholder')}" oninput="updateStat(${i},'value',this.value)">
+        <button class="icon-btn" title="${t('field.stat.remove')}" onclick="removeStat(${i})">✕</button>
+      </div>`;
+  });
+  html += `<button class="add-row-btn" onclick="addStat()">${t('field.stat.add')}</button></div>`;
+
+  // Descriptions
+  html += `<div class="field-group"><label class="section-label">${t('field.desc.label')}</label>`;
+  b.desc.forEach((d, i) => {
+    html += `
+      <div class="desc-block">
+        <div class="row1">
+          <input type="text" class="title-in" value="${escapeHtml(d.title)}" placeholder="${t('field.desc.titlePlaceholder')}" oninput="updateDesc(${i},'title',this.value)">
+          <button class="icon-btn" title="${t('field.desc.remove')}" onclick="removeDesc(${i})">✕</button>
+        </div>
+        <textarea placeholder="${t('field.desc.textPlaceholder')}" oninput="updateDesc(${i},'text',this.value)">${escapeHtml(d.text)}</textarea>
+      </div>`;
+  });
+  html += `<button class="add-row-btn" onclick="addDesc()">${t('field.desc.add')}</button></div>`;
+
+  // Types section (customizable name)
+  const typeFreq = getTypeFrequencyList();
+  const existingTypeNames = new Set((b.types||[]).map(t => (t.name||'').trim().toLowerCase()).filter(Boolean));
+  commonTypeChipsCache = typeFreq.filter(t => !existingTypeNames.has(t.name.toLowerCase())).slice(0, 5);
+
+  html += `
+    <div class="field-group">
+      <label class="section-label with-input">
+        <span>${t('field.types.sectionLabel')}</span>
+        <input type="text" class="section-label-in" value="${escapeHtml(b.typesLabel)}" placeholder="${t('types.label.default')}" oninput="updateTypesLabel(this.value)">
+        <span class="section-label-fixed"></span>
+      </label>
+      <div class="types-editor">
+        <div class="types-main">`;
+  b.types.forEach((t, i) => {
+    html += `
+      <div class="type-row">
+        <input type="text" class="emoji-in" value="${escapeHtml(t.emoji)}" placeholder="🐲" oninput="updateType(${i},'emoji',this.value)">
+        <div class="type-name-wrap">
+          <input type="text" class="type-name-in" value="${escapeHtml(t.name)}" placeholder="${T('field.type.namePlaceholder')}" autocomplete="off"
+                 oninput="onTypeNameInput(${i}, this.value)" onkeydown="handleTypeNameKeydown(event, ${i})">
+          <div class="type-suggest" id="type-suggest-${i}"></div>
+        </div>
+        <button class="icon-btn" title="${T('field.type.remove')}" onclick="removeType(${i})">✕</button>
+      </div>`;
+  });
+  html += `<button class="add-row-btn" onclick="addType()">${t('field.type.add')}</button>
+        </div>
+        <div class="types-common">
+          <div class="types-common-title">${t('field.type.commonTitle')}</div>
+          <div class="types-common-list">`;
+  if(commonTypeChipsCache.length === 0){
+    html += `<div class="types-common-empty">${t('field.type.commonEmpty')}</div>`;
+  } else {
+    commonTypeChipsCache.forEach((t, i) => {
+      html += `<div class="type-chip-common" title="${escapeHtml(t.name)}" onclick="addCommonTypeByIndex(${i})">
+        <span class="chip-emoji">${escapeHtml(t.emoji || '🔹')}</span><span class="chip-name">${escapeHtml(t.name)}</span>
+      </div>`;
+    });
+  }
+  html += `</div>
+        </div>
+      </div>
+    </div>`;
+
+  el.innerHTML = html;
+}
+
+/* =========================================================
+   ACTIONS: beasts
+   ========================================================= */
+function addBeast(){
+  const prev = getSelected();
+  const b = makeBeast(t('beast.newDefault'));
+  if(prev){
+    // Hereda la estructura de la bestia que estaba seleccionada: cantidad y
+    // nombres de las cajas de descripción, el nombre de la sección de tipos,
+    // y los nombres de los stats. Todo lo demás empieza vacío/en blanco.
+    b.desc = prev.desc.map(d => ({ title: d.title, text: '' }));
+    b.typesLabel = prev.typesLabel;
+    b.stats = prev.stats.map(s => ({ emoji: s.emoji, label: s.label, value: '' }));
+  }
+  state.beasts.push(b);
+  state.selectedId = b.id;
+  renderAll();
+}
+
+function deleteBeast(id){
+  const b = state.beasts.find(x=>x.id===id);
+  if(!b) return;
+  if(!confirm(t('confirm.deleteBeast', { name: b.name || t('beast.thisBeast') }))) return;
+  state.beasts = state.beasts.filter(x=>x.id!==id);
+  if(state.selectedId === id) state.selectedId = state.beasts.length ? state.beasts[0].id : null;
+  renderAll();
+}
+
+function selectBeast(id){
+  state.selectedId = id;
+  renderAll();
+}
+
+function moveBeast(id, dir){
+  const idx = state.beasts.findIndex(x=>x.id===id);
+  if(idx===-1) return;
+  const newIdx = idx + dir;
+  if(newIdx < 0 || newIdx >= state.beasts.length) return;
+  const [b] = state.beasts.splice(idx, 1);
+  state.beasts.splice(newIdx, 0, b);
+  renderAll();
+}
+
+function updateName(val){
+  const b = getSelected(); if(!b) return;
+  b.name = val;
+  const idxEl = document.getElementById(currentTab==='edit' ? 'edit-index' : 'look-index');
+  const nameEls = idxEl.querySelectorAll('.beast-item .name');
+  const beastList = currentTab==='edit' ? state.beasts : getFilteredBeasts();
+  const pos = beastList.findIndex(x=>x.id===b.id);
+  if(pos>-1 && nameEls[pos]) nameEls[pos].textContent = val;
+}
+
+/* Thumbnail (single) */
+document.getElementById('file-thumb').addEventListener('change', function(e){
+  const b = getSelected(); if(!b){ this.value=''; return; }
+  const file = e.target.files[0];
+  if(!file){ return; }
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    b.thumb = ev.target.result;
+    renderAll();
+  };
+  reader.readAsDataURL(file);
+  this.value = '';
+});
+
+function clearThumb(){
+  const b = getSelected(); if(!b) return;
+  b.thumb = null;
+  renderAll();
+}
+
+/* Sides (multiple, ordered) */
+document.getElementById('file-sides').addEventListener('change', function(e){
+  const b = getSelected(); if(!b){ this.value=''; return; }
+  const files = Array.from(e.target.files);
+  if(files.length === 0) return;
+  let remaining = files.length;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      b.sides.push({ id: uid(), label: letterFor(b.sides.length), src: ev.target.result });
+      remaining--;
+      if(remaining === 0) renderEdit();
+    };
+    reader.readAsDataURL(file);
+  });
+  this.value = '';
+});
+
+function updateSideLabel(i, val){
+  const b = getSelected(); if(!b) return;
+  b.sides[i].label = val;
+}
+function removeSide(i){
+  const b = getSelected(); if(!b) return;
+  b.sides.splice(i,1);
+  renderEdit();
+}
+function moveSide(i, dir){
+  const b = getSelected(); if(!b) return;
+  const j = i + dir;
+  if(j < 0 || j >= b.sides.length) return;
+  const tmp = b.sides[i];
+  b.sides[i] = b.sides[j];
+  b.sides[j] = tmp;
+  renderEdit();
+}
+
+/* Stats */
+function addStat(){
+  const b = getSelected(); if(!b) return;
+  b.stats.push({ emoji:'⭐', label:'', value:'' });
+  renderEdit();
+}
+function removeStat(i){
+  const b = getSelected(); if(!b) return;
+  b.stats.splice(i,1);
+  renderEdit();
+}
+function updateStat(i, field, val){
+  const b = getSelected(); if(!b) return;
+  b.stats[i][field] = val;
+}
+
+/* Descriptions */
+function addDesc(){
+  const b = getSelected(); if(!b) return;
+  b.desc.push({ title:t('desc.newSection'), text:'' });
+  renderEdit();
+}
+function removeDesc(i){
+  const b = getSelected(); if(!b) return;
+  b.desc.splice(i,1);
+  renderEdit();
+}
+function updateDesc(i, field, val){
+  const b = getSelected(); if(!b) return;
+  b.desc[i][field] = val;
+}
+
+/* Types */
+function updateTypesLabel(val){
+  const b = getSelected(); if(!b) return;
+  b.typesLabel = val;
+}
+function addType(){
+  const b = getSelected(); if(!b) return;
+  b.types.push({ id: uid(), emoji:'🐲', name:'' });
+  renderEdit();
+}
+function removeType(i){
+  const b = getSelected(); if(!b) return;
+  b.types.splice(i,1);
+  renderEdit();
+}
+function updateType(i, field, val){
+  const b = getSelected(); if(!b) return;
+  b.types[i][field] = val;
+}
+
+/* =========================================================
+   TIPOS: frecuencia en el bestiario + sugerencias comunes
+   ========================================================= */
+let commonTypeChipsCache = [];
+let typeSuggestState = { rowIndex:null, items:[], highlighted:-1 };
+
+function getTypeFrequencyList(){
+  const map = new Map();
+  state.beasts.forEach(beast => {
+    (beast.types||[]).forEach(t => {
+      const key = (t.name||'').trim().toLowerCase();
+      if(!key) return;
+      if(!map.has(key)) map.set(key, { name:(t.name||'').trim(), emoji:t.emoji||'', count:0 });
+      const entry = map.get(key);
+      entry.count++;
+      if(!entry.emoji && t.emoji) entry.emoji = t.emoji;
+    });
+  });
+  return Array.from(map.values()).sort((a,b)=> b.count - a.count || a.name.localeCompare(b.name));
+}
+
+function addCommonTypeByIndex(i){
+  const t = commonTypeChipsCache[i];
+  if(!t) return;
+  const b = getSelected(); if(!b) return;
+  b.types.push({ id: uid(), emoji: t.emoji || '🔹', name: t.name });
+  renderEdit();
+}
+
+function onTypeNameInput(i, val){
+  updateType(i, 'name', val);
+  const q = val.trim().toLowerCase();
+  const freq = getTypeFrequencyList();
+  const items = (q ? freq.filter(t => t.name.toLowerCase().includes(q)) : freq).slice(0, 8);
+  typeSuggestState = { rowIndex:i, items, highlighted:-1 };
+  renderTypeSuggestDropdown(i);
+}
+
+function renderTypeSuggestDropdown(i){
+  const dd = document.getElementById('type-suggest-'+i);
+  if(!dd) return;
+  if(typeSuggestState.rowIndex !== i || typeSuggestState.items.length === 0){
+    dd.classList.remove('show');
+    dd.innerHTML = '';
+    return;
+  }
+  dd.innerHTML = typeSuggestState.items.map((t, idx) => `
+    <div class="sug-item ${idx===typeSuggestState.highlighted ? 'highlight' : ''}" onmousedown="event.preventDefault(); selectTypeSuggestion(${i}, ${idx})">
+      <span>${escapeHtml(t.emoji||'🔹')}</span><span>${escapeHtml(t.name)}</span>
+    </div>`).join('');
+  dd.classList.add('show');
+}
+
+function handleTypeNameKeydown(e, i){
+  if(typeSuggestState.rowIndex !== i || typeSuggestState.items.length === 0) return;
+  if(e.key === 'ArrowDown'){
+    e.preventDefault();
+    typeSuggestState.highlighted = Math.min(typeSuggestState.highlighted+1, typeSuggestState.items.length-1);
+    renderTypeSuggestDropdown(i);
+  } else if(e.key === 'ArrowUp'){
+    e.preventDefault();
+    typeSuggestState.highlighted = Math.max(typeSuggestState.highlighted-1, 0);
+    renderTypeSuggestDropdown(i);
+  } else if(e.key === 'Enter'){
+    if(typeSuggestState.highlighted >= 0){
+      e.preventDefault();
+      selectTypeSuggestion(i, typeSuggestState.highlighted);
+    } else {
+      closeTypeSuggest();
+    }
+  } else if(e.key === 'Escape'){
+    closeTypeSuggest();
+  }
+}
+
+function selectTypeSuggestion(i, idx){
+  const t = typeSuggestState.items[idx];
+  if(!t) return;
+  const b = getSelected(); if(!b) return;
+  if(!b.types[i]) return;
+  b.types[i].name = t.name;
+  if(t.emoji) b.types[i].emoji = t.emoji;
+  closeTypeSuggest();
+  renderEdit();
+}
+
+function closeTypeSuggest(){
+  typeSuggestState = { rowIndex:null, items:[], highlighted:-1 };
+  document.querySelectorAll('.type-suggest').forEach(el => { el.classList.remove('show'); el.innerHTML=''; });
+}
+document.addEventListener('click', function(e){
+  if(!e.target.closest('.type-name-wrap')) closeTypeSuggest();
+});
+
+/* =========================================================
+   BEAST CONTEXT MENU (right click en el índice de edición)
+   ========================================================= */
+function showBeastContextMenu(e, id){
+  e.preventDefault();
+  const menu = document.getElementById('beast-ctx-menu');
+  menu.innerHTML = `
+    <button onclick="duplicateBeast('${id}'); hideBeastContextMenu();">${t('ctx.duplicate')}</button>
+    <button onclick="exportSingleBeast('${id}'); hideBeastContextMenu();">${t('ctx.exportSingle')}</button>
+  `;
+  const menuWidth = 190, menuHeight = 90;
+  const x = Math.min(e.clientX, window.innerWidth - menuWidth - 8);
+  const y = Math.min(e.clientY, window.innerHeight - menuHeight - 8);
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
+  menu.classList.add('show');
+}
+function hideBeastContextMenu(){
+  const menu = document.getElementById('beast-ctx-menu');
+  if(menu) menu.classList.remove('show');
+}
+document.addEventListener('click', hideBeastContextMenu);
+document.addEventListener('scroll', hideBeastContextMenu, true);
+window.addEventListener('resize', hideBeastContextMenu);
+document.addEventListener('contextmenu', function(e){
+  if(!e.target.closest('.beast-item')) hideBeastContextMenu();
+});
+
+function duplicateBeast(id){
+  const b = state.beasts.find(x=>x.id===id);
+  if(!b) return;
+  const copy = JSON.parse(JSON.stringify(b));
+  copy.id = uid();
+  copy.name = (b.name || t('beast.defaultName')) + t('beast.copySuffix');
+  if(Array.isArray(copy.types)) copy.types.forEach(t => t.id = uid());
+  const idx = state.beasts.findIndex(x=>x.id===id);
+  state.beasts.splice(idx+1, 0, copy);
+  state.selectedId = copy.id;
+  renderAll();
+  showToast(t('toast.beastDuplicated'));
+}
+
+function exportSingleBeast(id){
+  const b = state.beasts.find(x=>x.id===id);
+  if(!b) return;
+  try{
+    const json = JSON.stringify(b);
+    const compressed = pako.deflate(json);
+    const blob = new Blob([compressed], { type:'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safeName = (b.name || 'bestia').trim().replace(/[^\w\-]+/g,'_') || 'bestia';
+    a.href = url;
+    a.download = `${safeName}.beast`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(t('toast.beastExported'));
+  }catch(err){
+    console.error(err);
+    showToast(t('toast.exportBeastError'));
+  }
+}
+
+/* =========================================================
+   HEADER SAVE/LOAD DROPDOWN
+   ========================================================= */
+function toggleLoadMenu(e){
+  e.stopPropagation();
+  document.getElementById('load-dropdown').classList.toggle('show');
+}
+function triggerLoadBestiary(){
+  document.getElementById('load-dropdown').classList.remove('show');
+  document.getElementById('file-load').click();
+}
+function triggerLoadBeast(){
+  document.getElementById('load-dropdown').classList.remove('show');
+  document.getElementById('file-load-beast').click();
+}
+document.addEventListener('click', function(){
+  const dd = document.getElementById('load-dropdown');
+  if(dd) dd.classList.remove('show');
+});
+
+/* =========================================================
+   SAVE / LOAD (.bestiary — compressed, proprietary to this page)
+   ========================================================= */
+function saveBestiary(){
+  try{
+    const json = JSON.stringify(state);
+    const compressed = pako.deflate(json);
+    const blob = new Blob([compressed], { type:'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safeName = (state.beasts.length ? 'bestiario' : 'bestiario_vacio');
+    a.href = url;
+    a.download = `${safeName}.bestiary`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(t('toast.bestiarySaved'));
+  }catch(err){
+    console.error(err);
+    showToast(t('toast.saveBestiaryError'));
+  }
+}
+
+document.getElementById('file-load').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  if(!file){ return; }
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    try{
+      const bytes = new Uint8Array(ev.target.result);
+      const json = pako.inflate(bytes, { to:'string' });
+      const loaded = JSON.parse(json);
+      if(!loaded || !Array.isArray(loaded.beasts)) throw new Error('Formato inválido');
+      // backward/forward compatibility defaults
+      loaded.beasts.forEach(b => {
+        if(!Array.isArray(b.sides)) b.sides = Array.isArray(b.images) ? b.images.map((src,i)=>({id:uid(),label:letterFor(i),src})) : [];
+        if(typeof b.thumb === 'undefined') b.thumb = null;
+        if(typeof b.typesLabel === 'undefined') b.typesLabel = t('types.label.default');
+        if(!Array.isArray(b.types)) b.types = [];
+        if(!Array.isArray(b.desc)) b.desc = [];
+        if(!Array.isArray(b.stats)) b.stats = [];
+        delete b.images;
+      });
+      state = loaded;
+      state.selectedId = state.beasts.length ? state.beasts[0].id : null;
+      stageIndex = {};
+      lookSearchQuery = '';
+      renderAll();
+      showToast(t('toast.bestiaryLoaded'));
+    }catch(err){
+      console.error(err);
+      showToast(t('toast.invalidBestiaryFile'));
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  this.value = '';
+});
+
+document.getElementById('file-load-beast').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  if(!file){ return; }
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    try{
+      const bytes = new Uint8Array(ev.target.result);
+      const json = pako.inflate(bytes, { to:'string' });
+      const loaded = JSON.parse(json);
+      if(!loaded || typeof loaded !== 'object' || Array.isArray(loaded) || !('name' in loaded)) throw new Error('Formato inválido');
+      // backward/forward compatibility defaults (igual que al cargar un bestiario completo)
+      if(!Array.isArray(loaded.sides)) loaded.sides = Array.isArray(loaded.images) ? loaded.images.map((src,i)=>({id:uid(),label:letterFor(i),src})) : [];
+      if(typeof loaded.thumb === 'undefined') loaded.thumb = null;
+      if(typeof loaded.typesLabel === 'undefined') loaded.typesLabel = t('types.label.default');
+      if(!Array.isArray(loaded.types)) loaded.types = [];
+      if(!Array.isArray(loaded.desc)) loaded.desc = [];
+      if(!Array.isArray(loaded.stats)) loaded.stats = [];
+      delete loaded.images;
+      loaded.id = uid();
+      loaded.types.forEach(t => { if(!t.id) t.id = uid(); });
+      state.beasts.push(loaded);
+      state.selectedId = loaded.id;
+      renderAll();
+      showToast(t('toast.beastLoaded'));
+    }catch(err){
+      console.error(err);
+      showToast(t('toast.invalidBeastFile'));
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  this.value = '';
+});
+
+/* =========================================================
+   TOAST
+   ========================================================= */
+let toastTimer = null;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> t.classList.remove('show'), 2600);
+}
+
+/* =========================================================
+   RENDER ALL
+   ========================================================= */
+function renderAll(){
+  renderLook();
+  renderEdit();
+}
+
+/* =========================================================
+   RESTAURAR ESTADO tras un cambio de idioma (que recarga la
+   página). Si no hay nada que restaurar, se siembra la bestia
+   de ejemplo de siempre.
+   ========================================================= */
+let restoredAfterLangSwitch = false;
+(function restoreStateAfterLangSwitch(){
+  let raw = null;
+  try{ raw = sessionStorage.getItem('yourbestiary-pending-state'); }catch(e){}
+  if(!raw) return;
+  try{ sessionStorage.removeItem('yourbestiary-pending-state'); }catch(e){}
+  try{
+    const snapshot = JSON.parse(raw);
+    if(snapshot && snapshot.appState && Array.isArray(snapshot.appState.beasts)){
+      state = snapshot.appState;
+      if(snapshot.tab === 'edit') currentTab = 'edit';
+      restoredAfterLangSwitch = true;
+    }
+  }catch(e){ console.error('No se pudo restaurar el bestiario tras el cambio de idioma:', e); }
+})();
+
+/* =========================================================
+   INIT — an example beast so the page isn't empty
+   ========================================================= */
+if(!restoredAfterLangSwitch){
+  (function seed(){
+    const wolf = makeBeast('Lobo de Cenizas');
+    wolf.stats = [
+      { emoji:'❤️', label:'Vida', value:'54' },
+      { emoji:'⚔️', label:'Ataque', value:'12' },
+      { emoji:'🛡️', label:'Defensa', value:'7' },
+      { emoji:'💨', label:'Velocidad', value:'9' }
+    ];
+    wolf.desc = [
+      { title:'Hábitat', text:'Ronda los bosques quemados tras la caída de la ceniza, donde su pelaje gris se confunde con la niebla.' },
+      { title:'Comportamiento', text:'Caza en manadas pequeñas y evita el enfrentamiento directo, prefiriendo emboscadas al anochecer.' }
+    ];
+    wolf.typesLabel = 'TIPOS';
+    wolf.types = [
+      { id: uid(), emoji:'🐺', name:'Bestia' },
+      { id: uid(), emoji:'🔥', name:'Ceniza' }
+    ];
+    state.beasts.push(wolf);
+    state.selectedId = wolf.id;
+  })();
+}
+
+switchTab(currentTab);
+
+/* =========================================================
+   TERMINAL (futura) — botón de esquina + panel
+   ========================================================= */
+(function initTerminalCorner(){
+  const zone = document.getElementById('corner-zone');
+  const btn = document.getElementById('terminal-btn');
+  let hoverTimer = null;
+
+  zone.addEventListener('mouseenter', function(){
+    clearTimeout(hoverTimer);
+    hoverTimer = setTimeout(function(){
+      btn.classList.add('show');
+    }, 2000);
+  });
+  zone.addEventListener('mouseleave', function(){
+    clearTimeout(hoverTimer);
+    if(!terminalPanelOpen){
+      btn.classList.remove('show');
+    }
+  });
+})();
+
+let terminalPanelOpen = false;
+
+function openTerminalPanel(){
+  document.getElementById('terminal-panel').classList.add('open');
+  document.getElementById('terminal-btn').classList.add('show');
+  terminalPanelOpen = true;
+  if(document.getElementById('terminal-output').children.length === 0){
+    appendTerminalLine('Terminal /do — type a command to begin.', 'sys');
+  }
+  setTimeout(()=> document.getElementById('terminal-input').focus(), 50);
+}
+
+function closeTerminalPanel(){
+  document.getElementById('terminal-panel').classList.remove('open');
+  document.getElementById('terminal-btn').classList.remove('show');
+  terminalPanelOpen = false;
+}
+
+document.getElementById('terminal-input').addEventListener('keydown', function(e){
+  if(e.key === 'Enter'){
+    const val = this.value;
+    this.value = '';
+    handleTerminalSubmit(val);
+  } else if(e.key === 'Escape'){
+    closeTerminalPanel();
+  }
+});
+
+function handleTerminalSubmit(raw){
+  // If a command (like EditInfo) is mid-way through collecting multi-line
+  // text, every Enter press feeds that text instead of being parsed as a
+  // new command, until the user sends a lone "._." line.
+  if(typeof window.terminalIsAwaitingMultiline === 'function' && window.terminalIsAwaitingMultiline()){
+    appendTerminalLine(raw, 'echo');
+    if(typeof window.runTerminalMultilineLine === 'function'){
+      let result;
+      try{
+        result = window.runTerminalMultilineLine(raw, { state, renderAll, showToast, getSelected, appendRichLine: appendTerminalLineHTML });
+      }catch(err){
+        appendTerminalLine('Error running command: ' + err.message, 'err');
+        return;
+      }
+      if(result !== undefined && result !== null && result !== ''){
+        appendTerminalLine(String(result));
+      }
+    }
+    return;
+  }
+
+  const cmd = raw.trim();
+  if(!cmd) return;
+  appendTerminalLine('/do> ' + cmd, 'echo');
+  if(typeof window.runTerminalCommand === 'function'){
+    let result;
+    try{
+      result = window.runTerminalCommand(cmd, { state, renderAll, showToast, getSelected, appendRichLine: appendTerminalLineHTML });
+    }catch(err){
+      appendTerminalLine('Error running command: ' + err.message, 'err');
+      return;
+    }
+    if(result !== undefined && result !== null && result !== ''){
+      appendTerminalLine(String(result));
+    }
+  } else {
+    appendTerminalLine('(no commands available)', 'sys');
+  }
+}
+
+function appendTerminalLine(text, cls){
+  const out = document.getElementById('terminal-output');
+  const div = document.createElement('div');
+  div.className = 'line' + (cls ? ' ' + cls : '');
+  div.textContent = text;
+  out.appendChild(div);
+  out.scrollTop = out.scrollHeight;
+}
+
+// Same as appendTerminalLine but renders trusted inline HTML (used so
+// commands like Question can highlight missing values in red).
+function appendTerminalLineHTML(html, cls){
+  const out = document.getElementById('terminal-output');
+  const div = document.createElement('div');
+  div.className = 'line' + (cls ? ' ' + cls : '');
+  div.innerHTML = html;
+  out.appendChild(div);
+  out.scrollTop = out.scrollHeight;
+}
+
+/* ---- arrastrar el panel de la terminal por la pantalla ---- */
+(function initTerminalDrag(){
+  const panel = document.getElementById('terminal-panel');
+  const header = panel.querySelector('.terminal-panel-header');
+  let drag = null;
+
+  header.addEventListener('mousedown', function(e){
+    if(e.target.closest('.terminal-close')) return;
+    const rect = panel.getBoundingClientRect();
+    panel.style.left = rect.left + 'px';
+    panel.style.top = rect.top + 'px';
+    panel.style.bottom = 'auto';
+    drag = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startLeft: rect.left,
+      startTop: rect.top
+    };
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', function(e){
+    if(!drag) return;
+    const dx = e.clientX - drag.startX;
+    const dy = e.clientY - drag.startY;
+    const maxLeft = window.innerWidth - panel.offsetWidth - 4;
+    const maxTop = window.innerHeight - panel.offsetHeight - 4;
+    const newLeft = Math.max(4, Math.min(drag.startLeft + dx, maxLeft));
+    const newTop = Math.max(4, Math.min(drag.startTop + dy, maxTop));
+    panel.style.left = newLeft + 'px';
+    panel.style.top = newTop + 'px';
+  });
+
+  document.addEventListener('mouseup', function(){
+    if(drag){
+      drag = null;
+      document.body.style.userSelect = '';
+    }
+  });
+})();
+</script>
+<script src="terminal-commands.js"></script>
+</body>
+</html>
